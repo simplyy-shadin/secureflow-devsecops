@@ -4,10 +4,17 @@ services:
       context: .
     ports:
       - "8000:8000"
+    environment:
+      DATABASE_URL: sqlite:////data/secureflow.db
     read_only: true
     tmpfs:
       - /tmp
+    volumes:
+      - secureflow-data:/data
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
+
+volumes:
+  secureflow-data:

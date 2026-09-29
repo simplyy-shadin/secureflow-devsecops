@@ -6,7 +6,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 RUN groupadd --system secureflow \
-    && useradd --system --gid secureflow --create-home secureflow
+    && useradd --system --gid secureflow --create-home secureflow \
+    && mkdir -p /data \
+    && chown secureflow:secureflow /data
 
 COPY requirements.txt .
 RUN python -m pip install --no-cache-dir --upgrade pip \
