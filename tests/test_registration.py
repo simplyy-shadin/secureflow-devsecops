@@ -2,13 +2,14 @@ from sqlalchemy import select
 
 from app.db.models import User
 from app.security.password import verify_password
+from tests.helpers import synthetic_password
 
 
 def test_register_user_stores_hash_and_returns_safe_response(
     client,
     db_session_factory,
 ) -> None:
-    password = "Correct-Horse-Battery-Staple-42"
+    password = synthetic_password()
 
     response = client.post(
         "/auth/register",
@@ -35,18 +36,20 @@ def test_register_user_stores_hash_and_returns_safe_response(
 
 
 def test_register_user_rejects_duplicate_normalized_email(client) -> None:
+    password = synthetic_password()
+
     first_response = client.post(
         "/auth/register",
         json={
             "email": "Alice@SecureFlow.dev",
-            "password": "Correct-Horse-Battery-Staple-42",
+            "password": password,
         },
     )
     second_response = client.post(
         "/auth/register",
         json={
             "email": "alice@secureflow.dev",
-            "password": "Another-Secure-Password-99",
+            "password": f"{password}-alternate",
         },
     )
 
@@ -62,7 +65,7 @@ def test_register_user_rejects_invalid_email(client) -> None:
         "/auth/register",
         json={
             "email": "not-an-email",
-            "password": "Correct-Horse-Battery-Staple-42",
+            "password": synthetic_password(),
         },
     )
 

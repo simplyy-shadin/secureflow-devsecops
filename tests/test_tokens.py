@@ -27,8 +27,14 @@ def test_expired_access_token_is_rejected() -> None:
 
 def test_tampered_access_token_is_rejected() -> None:
     token = create_access_token(42)
-    replacement = "a" if token[-1] != "a" else "b"
-    tampered_token = f"{token[:-1]}{replacement}"
+    header, payload, signature = token.split(".")
+
+    index = len(signature) // 2
+    replacement = "a" if signature[index] != "a" else "b"
+    tampered_signature = (
+        f"{signature[:index]}{replacement}{signature[index + 1:]}"
+    )
+    tampered_token = f"{header}.{payload}.{tampered_signature}"
 
     with pytest.raises(TokenValidationError):
         decode_access_token(tampered_token)
