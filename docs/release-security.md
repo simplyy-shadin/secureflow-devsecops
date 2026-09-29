@@ -135,20 +135,23 @@ For a versioned release, the workflow retains:
 
 The JSON evidence artifact is retained for 30 days. Attestation retention follows the repository and registry services rather than the short-lived Actions artifact policy.
 
-## Remaining Kubernetes follow-up
+## First published release
 
-PR #22 intentionally left `CKV_K8S_43` skipped because no real SecureFlow image digest existed at that point.
+Release `v0.1.0` was published from source commit:
 
-This release workflow removes the reason for inventing a digest, but the exception should not be deleted until a real version tag successfully publishes the first image.
+```text
+e89251f71695d15f78ed888d59921b49cc46b839
+```
 
-After that release:
+Release Image Security run `36560459917` completed successfully. The retained `release-metadata.json` records:
 
-1. obtain the published SHA-256 digest from `release-metadata.json`;
-2. update `deploy/k8s/deployment.yaml` to use the immutable GHCR digest;
-3. remove the `CKV_K8S_43` skip annotation;
-4. run Checkov again and require zero skipped image-digest checks.
+```text
+ghcr.io/simplyy-shadin/secureflow-devsecops@sha256:93a26b7b9d665574026e9dd850a75670363f97dfacda4c736babc307ab80d32c
+```
 
-That follow-up converts the documented residual risk into a verifiable deployment control rather than changing the manifest before an artifact actually exists.
+The same workflow successfully generated the published-image CycloneDX SBOM, signed build provenance, and signed SBOM attestation.
+
+The Kubernetes Deployment now uses this exact immutable reference and the temporary `CKV_K8S_43` exception introduced in PR #22 has been removed. This closes the residual image-integrity gap with a registry-derived digest rather than a fabricated placeholder.
 
 ## Limitations
 

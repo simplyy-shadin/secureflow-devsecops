@@ -84,7 +84,7 @@ The findings were:
 | `CKV_K8S_35` | JWT Secret was exposed through an environment-variable reference | Added file-backed signing-key support and mounted the Secret read-only |
 | `CKV_K8S_43` | Application image was not digest-pinned | Explicit temporary exception; see below |
 
-After remediation:
+The first remediation pass intentionally left `CKV_K8S_43` skipped until a real SecureFlow image existed:
 
 ```text
 Passed checks: 91
@@ -92,15 +92,19 @@ Failed checks: 0
 Skipped checks: 1
 ```
 
-The final workflow removes `--soft-fail`, so any non-skipped policy failure blocks the IaC job. A JSON report is retained for 14 days.
+Release `v0.1.0` subsequently published the application image from source commit `e89251f71695d15f78ed888d59921b49cc46b839`. The release workflow recorded the registry-provided digest:
 
-## Digest-pinning exception
+```text
+sha256:93a26b7b9d665574026e9dd850a75670363f97dfacda4c736babc307ab80d32c
+```
 
-`CKV_K8S_43` is skipped on the Deployment with an inline reason because this repository does not yet publish a SecureFlow application image. Inventing a digest would make the manifest look stronger while pointing to no real artifact.
+The Deployment now uses:
 
-The manifest currently uses a fixed reference tag as a placeholder for the intended registry location. Before a real deployment, replace that reference with a published image. Once an image-publishing workflow exists, the exception should be removed and the Deployment should use the immutable application-image digest.
+```text
+ghcr.io/simplyy-shadin/secureflow-devsecops@sha256:93a26b7b9d665574026e9dd850a75670363f97dfacda4c736babc307ab80d32c
+```
 
-The exception is intentionally narrow: it applies only to `CKV_K8S_43` on this Deployment and remains visible in Checkov output.
+The temporary `CKV_K8S_43` exception has therefore been removed. The IaC workflow remains blocking and retains its JSON report for 14 days.
 
 ## Deployment prerequisites
 
@@ -108,8 +112,7 @@ This directory is a security-reviewed reference baseline, not a claim that a clu
 
 Before applying it:
 
-1. publish the SecureFlow application image and update the Deployment image reference;
+1. verify the published SecureFlow image provenance for the digest referenced by the Deployment;
 2. create the `secureflow-runtime` Secret out of band with a generated signing key;
 3. confirm the cluster storage class supports the PVC;
-4. confirm the NetworkPolicy matches the intended ingress path;
-5. remove the digest exception once a real immutable image digest is available.
+4. confirm the NetworkPolicy matches the intended ingress path.
