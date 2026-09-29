@@ -34,7 +34,7 @@ def test_tampered_access_token_is_rejected() -> None:
     tampered_signature = (
         f"{signature[:index]}{replacement}{signature[index + 1:]}"
     )
-    tampered_token = ".".join((header, payload, tampered_signature))
+    tampered_token = f"{header}.{payload}.{tampered_signature}"
 
     with pytest.raises(TokenValidationError):
         decode_access_token(tampered_token)
