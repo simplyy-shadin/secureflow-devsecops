@@ -1,0 +1,58 @@
+name: DAST
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dast-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  zap-baseline:
+    name: ZAP baseline
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Start ephemeral SecureFlow target
+        shell: bash
+        run: |
+          set -euo pipefail
+          export JWT_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+          echo "JWT_SECRET_KEY=$JWT_SECRET_KEY" >> "$GITHUB_ENV"
+          docker compose up --build --detach
+
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:8000/health > /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+
+          docker compose logs
+          exit 1
+
+      - name: Run ZAP baseline observation scan
+        uses: zaproxy/action-baseline@de8ad967d3548d44ef623df22cf95c3b0baf8b25 # v0.15.0
+        with:
+          target: http://127.0.0.1:8000/docs
+          fail_action: false
+          allow_issue_writing: false
+          artifact_name: zap-baseline-observation
+
+      - name: Show target logs on failure
+        if: failure()
+        run: docker compose logs
+
+      - name: Stop ephemeral target
+        if: always()
+        run: docker compose down --volumes
