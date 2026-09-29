@@ -40,9 +40,9 @@ Current controls include a non-root runtime user, a read-only root filesystem, a
 
 ### TB3 — Runtime configuration to application
 
-The JWT signing key and other deployment settings enter the process through environment configuration.
+Runtime configuration enters the application through environment variables and, in Kubernetes, a read-only mounted secret file for the JWT signing key.
 
-The repository provides variable names but not signing material. Gitleaks scans current content and Git history for committed credentials.
+The repository provides configuration names and mount paths but no signing material. Local/container development uses an ignored environment-backed key, while the Kubernetes reference deployment exposes only `JWT_SECRET_KEY_FILE` and mounts the secret value out of band. Gitleaks scans current content and Git history for committed credentials.
 
 ### TB4 — Source repository to CI runner
 
@@ -97,7 +97,7 @@ The application also exposes configuration and persistence surfaces through proc
 | Tampering | Malicious CI action update | Third-party and first-party actions are pinned to reviewed commit SHAs | Upstream compromise before the pinned commit or transitive action behavior remains a supply-chain risk |
 | Repudiation | Malicious authentication activity cannot be reconstructed | CI changes have Git/PR history | Runtime security/audit logging is intentionally minimal today; a production deployment needs structured authentication/security event logging |
 | Information disclosure | Password or hash returned by API | Separate Pydantic response schemas exclude password fields and hashes | Database compromise still exposes Argon2id hashes |
-| Information disclosure | JWT signing key committed to source | Key is required through environment configuration; Gitleaks scans repository and history | Process/environment compromise can expose runtime secrets |
+| Information disclosure | JWT signing key committed to source | Key is external to source; local/container development uses environment configuration and Kubernetes uses a read-only mounted secret file; Gitleaks scans repository and history | Process, environment, mounted-secret, or cluster-secret compromise can expose runtime signing material |
 | Information disclosure | API documentation reveals attack surface | OpenAPI/Swagger describes endpoints and schemas | Public docs are useful in development but should be intentionally enabled, restricted, or disabled for production |
 | Information disclosure | Sensitive data exposed over plaintext transport | Local CI/development target uses HTTP only | Production requires TLS termination; HSTS only makes sense at the HTTPS boundary |
 | Denial of service | Repeated expensive password hashing exhausts CPU | Password length is bounded | No distributed login/registration throttling is implemented; production ingress must enforce request/rate limits |
