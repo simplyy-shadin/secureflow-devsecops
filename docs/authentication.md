@@ -32,7 +32,12 @@ The default access-token lifetime is 15 minutes and is configurable between 5 an
 
 ## Signing-key handling
 
-The JWT signing key has no repository default. `JWT_SECRET_KEY` must be supplied through the environment and must contain at least 32 characters.
+SecureFlow requires exactly one JWT signing-key source:
+
+- `JWT_SECRET_KEY` for environments where a secret can be supplied directly; or
+- `JWT_SECRET_KEY_FILE` for orchestrators that mount secrets as files.
+
+Direct signing-key values must contain at least 32 characters. File-backed keys are trimmed when read and are also rejected if they contain fewer than 32 characters.
 
 For local development, generate a value with:
 
@@ -40,9 +45,11 @@ For local development, generate a value with:
 python -c "import secrets; print(secrets.token_hex(32))"
 ```
 
-Store that value only in the ignored local `.env` file.
+Store that value only in the ignored local `.env` file as `JWT_SECRET_KEY`.
 
-GitHub Actions generates a new ephemeral signing key at runtime for the container smoke test. No CI signing key is committed to the repository.
+The Kubernetes deployment does not expose the signing key through a container environment variable. It mounts the `jwt-secret-key` entry from the `secureflow-runtime` Secret read-only and sets `JWT_SECRET_KEY_FILE` to that path.
+
+GitHub Actions generates a new ephemeral environment-backed signing key at runtime for container and DAST tests. No CI signing key is committed to the repository.
 
 ## Current boundaries
 

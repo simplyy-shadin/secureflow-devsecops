@@ -5,8 +5,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-RUN groupadd --system secureflow \
-    && useradd --system --gid secureflow --create-home secureflow \
+RUN groupadd --gid 10001 secureflow \
+    && useradd --uid 10001 --gid secureflow --create-home --no-log-init secureflow \
     && mkdir -p /data \
     && chown secureflow:secureflow /data
 

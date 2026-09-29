@@ -52,7 +52,7 @@ def test_access_token_with_wrong_audience_is_rejected() -> None:
             "iat": now,
             "exp": now + timedelta(minutes=5),
         },
-        settings.jwt_secret_key.get_secret_value(),
+        settings.get_jwt_signing_key(),
         algorithm=JWT_ALGORITHM,
     )
 

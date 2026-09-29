@@ -5,6 +5,8 @@ metadata:
   namespace: secureflow
   labels:
     app.kubernetes.io/name: secureflow
+  annotations:
+    checkov.io/skip1: CKV_K8S_43=Application image publishing is not implemented yet; the manifest uses a fixed release tag until a real image digest exists.
 spec:
   replicas: 1
   strategy:
@@ -34,7 +36,7 @@ spec:
       containers:
         - name: api
           image: ghcr.io/simplyy-shadin/secureflow-devsecops:0.1.0
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - name: http
               containerPort: 8000
@@ -42,11 +44,8 @@ spec:
           env:
             - name: DATABASE_URL
               value: sqlite:////data/secureflow.db
-            - name: JWT_SECRET_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: secureflow-runtime
-                  key: jwt-secret-key
+            - name: JWT_SECRET_KEY_FILE
+              value: /var/run/secrets/secureflow/jwt-secret-key
             - name: JWT_ISSUER
               value: secureflow
             - name: JWT_AUDIENCE
@@ -89,6 +88,9 @@ spec:
               mountPath: /data
             - name: tmp
               mountPath: /tmp
+            - name: jwt-signing-key
+              mountPath: /var/run/secrets/secureflow
+              readOnly: true
       volumes:
         - name: data
           persistentVolumeClaim:
@@ -97,3 +99,7 @@ spec:
           emptyDir:
             medium: Memory
             sizeLimit: 64Mi
+        - name: jwt-signing-key
+          secret:
+            secretName: secureflow-runtime
+            defaultMode: 0400
