@@ -12,7 +12,8 @@ RUN groupadd --system secureflow \
 
 COPY requirements.txt .
 RUN python -m pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt
+    && pip install --no-cache-dir -r requirements.txt \
+    && python -m pip uninstall --yes setuptools msgpack
 
 COPY --chown=secureflow:secureflow app ./app
 

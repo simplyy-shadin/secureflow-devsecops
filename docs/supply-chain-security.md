@@ -4,17 +4,15 @@ SecureFlow treats dependency risk and container-image risk as separate controls 
 
 ## Pull-request dependency review
 
-Pull requests run GitHub's dependency review action against the dependency changes introduced by the branch.
+Every pull request checks out full Git history and prints changes to `requirements.txt` and `requirements-dev.txt` before scanning the resulting dependency set.
 
-The gate fails when a newly introduced dependency is associated with a vulnerability rated **HIGH** or **CRITICAL**.
+The first implementation attempted GitHub's dependency review action. The action failed because Dependency Graph is not enabled for this repository. Rather than make an account-level repository setting a hidden prerequisite for the security gate, SecureFlow uses a portable Trivy filesystem SCA scan on every pull request and push to `main`.
 
-License policy is intentionally not part of this milestone. The control is focused on known-vulnerability risk rather than mixing security and legal-policy decisions into one gate.
+This means dependency changes are visible in CI and the complete resulting manifest set is scanned for published vulnerabilities.
 
 ## Current dependency scan
 
-Trivy also scans the repository filesystem for dependency vulnerabilities on pull requests and pushes to `main`.
-
-The workflow creates a JSON report containing findings across all severities. A second pass acts as the blocking gate.
+Trivy creates a JSON report containing findings across all severities. A second pass acts as the blocking gate.
 
 Blocking policy:
 
@@ -38,14 +36,34 @@ Outputs include:
 
 The JSON and SARIF files are retained as short-lived workflow artifacts for review and troubleshooting.
 
+## Initial gate findings and remediation
+
+The first supply-chain run blocked the pull request on real actionable findings.
+
+### PyJWT
+
+The dependency and image scans found two HIGH vulnerabilities in `PyJWT==2.10.1`:
+
+- CVE-2026-32597, fixed in 2.12.0
+- CVE-2026-48526, fixed in 2.13.0
+
+SecureFlow upgraded the direct dependency to `PyJWT==2.13.0` so both findings are addressed by the same reviewed version change.
+
+### Runtime-only packages
+
+The image scan also identified HIGH findings in `msgpack==1.1.2` and `setuptools==70.3.0`.
+
+Neither package is required by the SecureFlow application at runtime. Instead of adding newer unused packages merely to satisfy the scanner, the image removes them after application dependencies are installed. This reduces runtime attack surface and keeps build tooling out of the final runtime where it is unnecessary.
+
+The image scan remains the validation point for that decision.
+
 ## Tool pinning
 
 The workflow pins:
 
-- `actions/dependency-review-action` to the commit for v5.0.0
 - `aquasecurity/trivy-action` to the commit behind signed tag v0.36.0
 - Trivy itself to v0.70.0
-- GitHub-maintained upload actions to immutable commit SHAs
+- GitHub-maintained checkout, SARIF, and artifact actions to immutable commit SHAs
 
 Pinning the action code and scanner version reduces silent changes in CI behavior. Trivy's vulnerability databases remain intentionally updateable because stale advisory data would reduce scan value.
 
