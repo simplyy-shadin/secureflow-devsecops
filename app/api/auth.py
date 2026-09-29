@@ -1,3 +1,5 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -9,13 +11,15 @@ from app.security.password import hash_password
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+DbSession = Annotated[Session, Depends(get_db)]
+
 
 @router.post(
     "/register",
     response_model=UserRead,
     status_code=status.HTTP_201_CREATED,
 )
-def register_user(payload: UserCreate, db: Session = Depends(get_db)) -> User:
+def register_user(payload: UserCreate, db: DbSession) -> User:
     user = User(
         email=str(payload.email),
         password_hash=hash_password(payload.password),
