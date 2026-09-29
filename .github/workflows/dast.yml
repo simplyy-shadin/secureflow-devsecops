@@ -47,8 +47,7 @@ jobs:
           target: http://127.0.0.1:8000/docs
           fail_action: true
           allow_issue_writing: false
-          rules_file_name: .zap/rules.tsv
-          cmd_options: -I
+          cmd_options: -I -c /zap/wrk/.zap/rules.tsv
           artifact_name: zap-baseline
 
       - name: Show target logs on failure
