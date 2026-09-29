@@ -41,6 +41,15 @@ jobs:
 
           mkdir -p "$install_dir"
           unzip -q "$archive" -d "$install_dir"
+
+          binary="$(find "$install_dir" -maxdepth 2 -type f -name 'checkov*' -print -quit)"
+          if [ -z "$binary" ]; then
+            echo "Checkov executable was not found in the verified release archive."
+            find "$install_dir" -maxdepth 2 -type f -print
+            exit 1
+          fi
+
+          mv "$binary" "$install_dir/checkov"
           chmod +x "$install_dir/checkov"
           echo "$install_dir" >> "$GITHUB_PATH"
 
