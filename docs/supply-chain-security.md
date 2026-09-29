@@ -49,11 +49,15 @@ The dependency and image scans found two HIGH vulnerabilities in `PyJWT==2.10.1`
 
 SecureFlow upgraded the direct dependency to `PyJWT==2.13.0` so both findings are addressed by the same reviewed version change.
 
-### Runtime-only packages
+### Packaging-tool findings
 
-The image scan also identified HIGH findings in `msgpack==1.1.2` and `setuptools==70.3.0`.
+The image scan also reported HIGH findings for `msgpack==1.1.2` and `setuptools==70.3.0`.
 
-Neither package is required by the SecureFlow application at runtime. Instead of adding newer unused packages merely to satisfy the scanner, the image removes them after application dependencies are installed. This reduces runtime attack surface and keeps build tooling out of the final runtime where it is unnecessary.
+A follow-up build check showed that neither package was installed as a top-level runtime package: pip reported both as absent when removal was attempted. The findings remained under Trivy's aggregate Python package target, alongside a warning that third-party SBOM data can lead to inaccurate vulnerability detection.
+
+Both components are associated with Python packaging tooling rather than SecureFlow's runtime dependency set. SecureFlow does not need pip inside the running API container after dependencies are installed, so the final image removes pip itself after installation instead of adding ignore rules for the reported components.
+
+CI verifies that the built runtime can no longer import pip before the image vulnerability gate runs. This reduces runtime attack surface and removes the stale packaging-tool inventory at its source rather than suppressing scanner output.
 
 The image scan remains the validation point for that decision.
 

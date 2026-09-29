@@ -83,6 +83,10 @@ jobs:
       - name: Build application image
         run: docker build --tag secureflow:${{ github.sha }} .
 
+      - name: Verify runtime excludes package-management tooling
+        run: |
+          docker run --rm secureflow:${{ github.sha }} python -c "import importlib.util; assert importlib.util.find_spec('pip') is None"
+
       - name: Generate full container vulnerability report
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
