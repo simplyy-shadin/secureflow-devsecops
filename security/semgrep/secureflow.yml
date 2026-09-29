@@ -1,0 +1,36 @@
+rules:
+  - id: secureflow.no-shell-true
+    languages:
+      - python
+    severity: ERROR
+    message: >
+      Avoid shell=True. Passing data through a shell increases command-injection
+      risk; use an argument list with shell=False unless shell interpretation is
+      an explicitly reviewed requirement.
+    metadata:
+      category: security
+      confidence: HIGH
+      cwe: "CWE-78: Improper Neutralization of Special Elements used in an OS Command"
+      owasp: "A03:2021 - Injection"
+    pattern-either:
+      - pattern: subprocess.run(..., shell=True, ...)
+      - pattern: subprocess.Popen(..., shell=True, ...)
+      - pattern: subprocess.call(..., shell=True, ...)
+      - pattern: subprocess.check_call(..., shell=True, ...)
+      - pattern: subprocess.check_output(..., shell=True, ...)
+
+  - id: secureflow.no-pickle-deserialization
+    languages:
+      - python
+    severity: ERROR
+    message: >
+      Do not deserialize untrusted data with pickle. Pickle can execute arbitrary
+      code during deserialization; use a non-executable data format such as JSON.
+    metadata:
+      category: security
+      confidence: HIGH
+      cwe: "CWE-502: Deserialization of Untrusted Data"
+      owasp: "A08:2021 - Software and Data Integrity Failures"
+    pattern-either:
+      - pattern: pickle.load(...)
+      - pattern: pickle.loads(...)
