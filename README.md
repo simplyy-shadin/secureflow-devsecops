@@ -59,7 +59,7 @@ JWTs validate signature, issuer, audience, expiry, issued-at time and subject. S
 
 ## Security gates
 
-| Layer | Control | Merge/release behavior |
+| Layer | Control | Gate behavior |
 | --- | --- | --- |
 | Code quality | Ruff + pytest | Any lint/test failure blocks CI |
 | Secrets | Gitleaks | Detection or scanner-control failure blocks |
