@@ -19,7 +19,16 @@ A non-blocking result is not the same as a fixed vulnerability. Reports are reta
 | Semgrep | Community Python rules plus project-owned rules | Semgrep `ERROR` finding, project-rule test failure, or scanner error | SARIF is uploaded to code scanning and retained as an artifact |
 | Trivy dependency SCA | Python dependency manifests and known vulnerability data | Fixed HIGH/CRITICAL library vulnerability or scanner failure | Full JSON report includes lower severities and unfixed findings |
 | Trivy container scan | Built runtime image and known vulnerability data | Fixed HIGH/CRITICAL image vulnerability, runtime package-manager regression, or scanner failure | Full JSON and SARIF reports are retained |
+| Checkov Kubernetes IaC | Kubernetes deployment manifests and runtime-security policy | Any non-skipped Checkov failure, scanner/install verification failure, or failure of the privileged-container control test | JSON report is retained; one narrowly scoped image-digest exception remains visible |
 | OWASP ZAP Baseline | Running local SecureFlow HTTP surface | A rule classified `FAIL` in `.zap/rules.tsv`, target startup failure, or scanner failure | Rules classified `WARN` stay visible; `INFO` is retained as scanner context |
+
+## IaC policy
+
+The Kubernetes Checkov workflow is blocking after the initial observation/remediation cycle.
+
+The only current skipped rule is `CKV_K8S_43` on the SecureFlow Deployment. The repository does not yet publish an application image, so there is no real application-image digest to pin. The exception is documented inline and in [kubernetes-security.md](kubernetes-security.md). It must be removed when image publishing is introduced.
+
+Checkov itself is version-pinned and its downloaded release archive is checksum-verified before execution. A temporary privileged Pod is used as a negative control to verify that the policy engine rejects `CKV_K8S_16`.
 
 ## DAST policy
 
@@ -58,6 +67,7 @@ A real credential requires revocation or rotation even if it is later removed fr
 
 - Semgrep: SARIF uploaded to GitHub code scanning and retained as a workflow artifact.
 - Trivy: dependency JSON plus container JSON/SARIF artifacts.
+- Checkov: Kubernetes JSON report retained as a workflow artifact.
 - ZAP: baseline report artifact from the ZAP action.
 - CI/Gitleaks: workflow logs provide execution evidence; secret values are redacted and not intentionally retained.
 

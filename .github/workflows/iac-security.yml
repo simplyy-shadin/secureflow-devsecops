@@ -1,0 +1,118 @@
+name: IaC Security
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iac-security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checkov:
+    name: Checkov Kubernetes gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install pinned Checkov
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          version="3.3.20"
+          archive="$RUNNER_TEMP/checkov.zip"
+          install_dir="$RUNNER_TEMP/checkov-bin"
+
+          curl --fail --silent --show-error --location \
+            "https://github.com/bridgecrewio/checkov/releases/download/${version}/checkov_linux_X86_64.zip" \
+            --output "$archive"
+
+          echo "4e630ff1f25ebb5de9d7adbfe90a869e8356e25f80f4ab456d6fb273358b4e67  $archive" \
+            | sha256sum --check
+
+          mkdir -p "$install_dir"
+          unzip -q "$archive" -d "$install_dir"
+
+          binary="$(find "$install_dir" -maxdepth 2 -type f -name 'checkov*' -print -quit)"
+          if [ -z "$binary" ]; then
+            echo "Checkov executable was not found in the verified release archive."
+            find "$install_dir" -maxdepth 2 -type f -print
+            exit 1
+          fi
+
+          mv "$binary" "$install_dir/checkov"
+          chmod +x "$install_dir/checkov"
+          echo "$install_dir" >> "$GITHUB_PATH"
+
+      - name: Verify scanner version
+        run: checkov --version | grep -F "3.3.20"
+
+      - name: Verify Kubernetes policy detection control
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          control_file="$RUNNER_TEMP/checkov-control.yaml"
+          cat > "$control_file" <<'YAML'
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            name: checkov-control
+            namespace: secureflow
+          spec:
+            containers:
+              - name: control
+                image: busybox:1.36
+                securityContext:
+                  privileged: true
+          YAML
+
+          set +e
+          checkov \
+            --file "$control_file" \
+            --framework kubernetes \
+            --check CKV_K8S_16 \
+            --compact
+          status=$?
+          set -e
+
+          if [ "$status" -eq 0 ]; then
+            echo "Checkov control test did not reject a privileged container."
+            exit 1
+          fi
+
+          echo "Checkov control test rejected the privileged container as expected."
+
+      - name: Generate Kubernetes IaC report
+        run: |
+          checkov \
+            --directory deploy/k8s \
+            --framework kubernetes \
+            --output json \
+            --soft-fail \
+            > checkov-kubernetes.json
+
+      - name: Enforce Kubernetes IaC gate
+        run: |
+          checkov \
+            --directory deploy/k8s \
+            --framework kubernetes \
+            --compact
+
+      - name: Preserve Checkov report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: checkov-kubernetes-report
+          path: checkov-kubernetes.json
+          if-no-files-found: error
+          retention-days: 14

@@ -1,0 +1,21 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: secureflow-default-deny
+  namespace: secureflow
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: secureflow
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              secureflow-access: allowed
+      ports:
+        - protocol: TCP
+          port: 8000
+  egress: []
