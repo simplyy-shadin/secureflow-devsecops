@@ -1,6 +1,6 @@
 # Container security baseline
 
-The first container definition is intentionally small and restrictive. Later security scanning work will validate this baseline rather than replacing it with a scanner-specific example.
+The container definition is intentionally small and restrictive. Security scanning validates this baseline rather than replacing it with a scanner-specific example.
 
 ## Current controls
 
@@ -30,6 +30,24 @@ This allows SQLite persistence while preserving the read-only root filesystem.
 
 The container drops all Linux capabilities and enables `no-new-privileges`. The current API does not require additional capabilities.
 
+### Runtime package-management reduction
+
+Python dependencies are installed during the image build, then pip is removed from the final runtime filesystem. The application does not need package-management tooling after startup.
+
+The supply-chain workflow verifies that pip is absent from the built image before running the final vulnerability gate.
+
+### Base-image pinning
+
+The Dockerfile keeps the readable `python:3.12-slim` tag but also pins the resolved OCI digest. This prevents an unchanged Dockerfile from silently resolving to different base-image contents.
+
+Updating the base image is an explicit maintenance action:
+
+1. resolve and review the new `python:3.12-slim` digest
+2. update the Dockerfile in a pull request
+3. rebuild the image
+4. run container smoke tests and Trivy scanning
+5. merge only after the new image satisfies the same gates
+
 ### Health check
 
 The image performs an HTTP request against `/health` using Python's standard library. This avoids adding tools such as curl only for health checking.
@@ -42,8 +60,8 @@ This is not being treated as a production migration strategy. Once the schema st
 
 ## Known trade-offs
 
-The base image currently uses the `python:3.12-slim` tag. This is easy to read and maintain during the early project stages, but a mutable tag does not provide full build reproducibility. A later supply-chain hardening task can pin the image by digest and document the update process.
-
 The current Compose database is SQLite backed by a Docker named volume. That is suitable for this single-service portfolio environment, but it is not a substitute for a production database service.
 
-The container configuration is not treated as secure merely because these controls exist. Trivy and configuration scanning will be added separately and may produce findings that require changes to this baseline.
+A pinned base-image digest improves reproducibility but does not update itself. The digest must be reviewed periodically so security fixes in newer Python/Debian images are not missed.
+
+Container hardening controls do not prove the image is vulnerability-free. Trivy scanning, smoke tests, and periodic dependency/base-image maintenance remain separate controls.
