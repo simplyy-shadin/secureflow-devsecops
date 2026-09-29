@@ -5,8 +5,6 @@ metadata:
   namespace: secureflow
   labels:
     app.kubernetes.io/name: secureflow
-  annotations:
-    checkov.io/skip1: CKV_K8S_43=Application image publishing is not implemented yet; the manifest uses a fixed release tag until a real image digest exists.
 spec:
   replicas: 1
   strategy:
@@ -35,7 +33,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: api
-          image: ghcr.io/simplyy-shadin/secureflow-devsecops:0.1.0
+          image: ghcr.io/simplyy-shadin/secureflow-devsecops@sha256:93a26b7b9d665574026e9dd850a75670363f97dfacda4c736babc307ab80d32c
           imagePullPolicy: Always
           ports:
             - name: http
