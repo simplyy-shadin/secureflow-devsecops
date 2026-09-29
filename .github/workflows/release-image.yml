@@ -1,0 +1,256 @@
+name: Release Image Security
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/release-image.yml"
+      - "app/**"
+      - "Dockerfile"
+      - "requirements.txt"
+      - "requirements-dev.txt"
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-image-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Build and SBOM validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build release candidate image
+        run: docker build --tag secureflow-release:${{ github.sha }} .
+
+      - name: Generate CycloneDX SBOM
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: v0.70.0
+          scan-type: image
+          image-ref: secureflow-release:${{ github.sha }}
+          format: cyclonedx
+          output: secureflow-sbom.cdx.json
+          exit-code: "0"
+
+      - name: Validate SBOM structure
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("secureflow-sbom.cdx.json")
+          data = json.loads(path.read_text(encoding="utf-8"))
+
+          if data.get("bomFormat") != "CycloneDX":
+              raise SystemExit("SBOM is not CycloneDX")
+
+          components = data.get("components", [])
+          if not components:
+              raise SystemExit("SBOM contains no components")
+
+          print(f"Validated CycloneDX SBOM with {len(components)} components.")
+          PY
+
+      - name: Preserve validation SBOM
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: release-validation-sbom
+          path: secureflow-sbom.cdx.json
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    name: Publish and attest image
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Validate release tag
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Release tag must use vMAJOR.MINOR.PATCH format."
+            exit 1
+          fi
+
+      - name: Resolve image name
+        id: image
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${GITHUB_REPOSITORY,,}"
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          echo "Publishing $image"
+
+      - name: Authenticate to GHCR
+        shell: bash
+        run: |
+          printf '%s' "${{ secrets.GITHUB_TOKEN }}" \
+            | docker login ghcr.io --username "${{ github.actor }}" --password-stdin
+
+      - name: Build and publish immutable image
+        id: publish
+        env:
+          IMAGE: ${{ steps.image.outputs.image }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          short_sha="${GITHUB_SHA:0:12}"
+          metadata="$RUNNER_TEMP/build-metadata.json"
+
+          docker buildx version
+
+          docker buildx build \
+            --platform linux/amd64 \
+            --tag "$IMAGE:$GITHUB_REF_NAME" \
+            --tag "$IMAGE:sha-$short_sha" \
+            --push \
+            --provenance=false \
+            --sbom=false \
+            --metadata-file "$metadata" \
+            .
+
+          digest="$(python - "$metadata" <<'PY'
+          import json
+          import sys
+
+          data = json.load(open(sys.argv[1], encoding="utf-8"))
+          digest = data.get("containerimage.digest")
+          if not isinstance(digest, str) or not digest.startswith("sha256:"):
+              raise SystemExit("Build metadata did not contain a SHA-256 image digest")
+          print(digest)
+          PY
+          )"
+
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "Published $IMAGE@$digest"
+
+          docker buildx imagetools inspect "$IMAGE@$digest" >/dev/null
+
+      - name: Generate SBOM for published digest
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: v0.70.0
+          scan-type: image
+          image-ref: ${{ steps.image.outputs.image }}@${{ steps.publish.outputs.digest }}
+          format: cyclonedx
+          output: secureflow-release-sbom.cdx.json
+          exit-code: "0"
+
+      - name: Validate published-image SBOM
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("secureflow-release-sbom.cdx.json")
+          data = json.loads(path.read_text(encoding="utf-8"))
+
+          if data.get("bomFormat") != "CycloneDX":
+              raise SystemExit("Published-image SBOM is not CycloneDX")
+
+          components = data.get("components", [])
+          if not components:
+              raise SystemExit("Published-image SBOM contains no components")
+
+          print(f"Validated published-image SBOM with {len(components)} components.")
+          PY
+
+      - name: Create signed build provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-name: ${{ steps.image.outputs.image }}
+          subject-digest: ${{ steps.publish.outputs.digest }}
+          push-to-registry: true
+
+      - name: Create signed SBOM attestation
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-name: ${{ steps.image.outputs.image }}
+          subject-digest: ${{ steps.publish.outputs.digest }}
+          sbom-path: secureflow-release-sbom.cdx.json
+          push-to-registry: true
+
+      - name: Write release metadata
+        env:
+          IMAGE: ${{ steps.image.outputs.image }}
+          DIGEST: ${{ steps.publish.outputs.digest }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          SOURCE_SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+          REPOSITORY: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          metadata = {
+              "image": os.environ["IMAGE"],
+              "digest": os.environ["DIGEST"],
+              "immutable_reference": f'{os.environ["IMAGE"]}@{os.environ["DIGEST"]}',
+              "tag": os.environ["RELEASE_TAG"],
+              "source_commit": os.environ["SOURCE_SHA"],
+              "workflow_run": (
+                  f'{os.environ["SERVER_URL"]}/{os.environ["REPOSITORY"]}'
+                  f'/actions/runs/{os.environ["RUN_ID"]}'
+              ),
+          }
+
+          Path("release-metadata.json").write_text(
+              json.dumps(metadata, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Preserve release evidence
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: secureflow-release-evidence-${{ github.ref_name }}
+          path: |
+            secureflow-release-sbom.cdx.json
+            release-metadata.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish release summary
+        env:
+          IMAGE: ${{ steps.image.outputs.image }}
+          DIGEST: ${{ steps.publish.outputs.digest }}
+        shell: bash
+        run: |
+          {
+            echo "## SecureFlow release image"
+            echo
+            echo "\`$IMAGE@$DIGEST\`"
+            echo
+            echo "A CycloneDX SBOM and signed GitHub provenance/SBOM attestations were created for this digest."
+          } >> "$GITHUB_STEP_SUMMARY"
