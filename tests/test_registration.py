@@ -1,43 +1,13 @@
-import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, select
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
+from sqlalchemy import select
 
-from app.db.database import Base, get_db
 from app.db.models import User
-from app.main import app
 from app.security.password import verify_password
 
-test_engine = create_engine(
-    "sqlite+pysqlite://",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-)
-TestingSessionLocal = sessionmaker(
-    bind=test_engine,
-    autoflush=False,
-    expire_on_commit=False,
-)
 
-
-def override_get_db():
-    with TestingSessionLocal() as session:
-        yield session
-
-
-app.dependency_overrides[get_db] = override_get_db
-client = TestClient(app)
-
-
-@pytest.fixture(autouse=True)
-def reset_database():
-    Base.metadata.drop_all(bind=test_engine)
-    Base.metadata.create_all(bind=test_engine)
-    yield
-
-
-def test_register_user_stores_hash_and_returns_safe_response() -> None:
+def test_register_user_stores_hash_and_returns_safe_response(
+    client,
+    db_session_factory,
+) -> None:
     password = "Correct-Horse-Battery-Staple-42"
 
     response = client.post(
@@ -53,7 +23,7 @@ def test_register_user_stores_hash_and_returns_safe_response() -> None:
     assert body["email"] == "alice@secureflow.dev"
     assert set(body) == {"id", "email", "created_at"}
 
-    with TestingSessionLocal() as session:
+    with db_session_factory() as session:
         user = session.scalar(
             select(User).where(User.email == "alice@secureflow.dev")
         )
@@ -64,7 +34,7 @@ def test_register_user_stores_hash_and_returns_safe_response() -> None:
         assert verify_password(password, user.password_hash) is True
 
 
-def test_register_user_rejects_duplicate_normalized_email() -> None:
+def test_register_user_rejects_duplicate_normalized_email(client) -> None:
     first_response = client.post(
         "/auth/register",
         json={
@@ -87,7 +57,7 @@ def test_register_user_rejects_duplicate_normalized_email() -> None:
     }
 
 
-def test_register_user_rejects_invalid_email() -> None:
+def test_register_user_rejects_invalid_email(client) -> None:
     response = client.post(
         "/auth/register",
         json={
@@ -99,7 +69,7 @@ def test_register_user_rejects_invalid_email() -> None:
     assert response.status_code == 422
 
 
-def test_register_user_rejects_short_password() -> None:
+def test_register_user_rejects_short_password(client) -> None:
     response = client.post(
         "/auth/register",
         json={
