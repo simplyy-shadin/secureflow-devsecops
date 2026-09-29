@@ -1,0 +1,56 @@
+name: IaC Security
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iac-security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checkov:
+    name: Checkov Kubernetes observation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install pinned Checkov
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          version="3.3.20"
+          archive="$RUNNER_TEMP/checkov.zip"
+          install_dir="$RUNNER_TEMP/checkov-bin"
+
+          curl --fail --silent --show-error --location \
+            "https://github.com/bridgecrewio/checkov/releases/download/${version}/checkov_linux_X86_64.zip" \
+            --output "$archive"
+
+          echo "4e630ff1f25ebb5de9d7adbfe90a869e8356e25f80f4ab456d6fb273358b4e67  $archive" \
+            | sha256sum --check
+
+          mkdir -p "$install_dir"
+          unzip -q "$archive" -d "$install_dir"
+          chmod +x "$install_dir/checkov"
+          echo "$install_dir" >> "$GITHUB_PATH"
+
+      - name: Verify scanner version
+        run: checkov --version | grep -F "3.3.20"
+
+      - name: Observe Kubernetes IaC findings
+        run: |
+          checkov \
+            --directory deploy/k8s \
+            --framework kubernetes \
+            --compact \
+            --soft-fail
