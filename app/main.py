@@ -7,6 +7,7 @@ from app.api.auth import router as auth_router
 from app.api.users import router as users_router
 from app.core.config import get_settings
 from app.db.database import Base, engine
+from app.security.headers import SecurityHeadersMiddleware
 
 
 @asynccontextmanager
@@ -24,6 +25,8 @@ app = FastAPI(
     redoc_url=None,
     lifespan=lifespan,
 )
+
+app.add_middleware(SecurityHeadersMiddleware)
 
 app.include_router(auth_router)
 app.include_router(users_router)

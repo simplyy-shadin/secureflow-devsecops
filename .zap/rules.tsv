@@ -1,0 +1,14 @@
+# ZAP Baseline rule policy for the local SecureFlow DAST target.
+# FAIL = regression blocks CI. WARN = visible residual/development finding.
+# INFO = informational scanner observation.
+
+10020	FAIL	(Missing Anti-clickjacking Header - required SecureFlow response control)
+10021	FAIL	(X-Content-Type-Options Header Missing - required SecureFlow response control)
+10038	FAIL	(Content Security Policy Header Not Set - required SecureFlow response control)
+10049	FAIL	(Storable and Cacheable Content - authenticated/API responses use no-store)
+10063	FAIL	(Permissions Policy Header Not Set - required SecureFlow browser-facing response control)
+
+10017	WARN	(Cross-Domain JavaScript Source File Inclusion - FastAPI development Swagger UI)
+90003	WARN	(Sub Resource Integrity Attribute Missing - generated FastAPI Swagger UI assets)
+90004	WARN	(Cross-Origin-Embedder-Policy Header Missing - cross-origin isolation is not required by this API)
+10109	INFO	(Modern Web Application - scanner classification, not a vulnerability)
