@@ -55,19 +55,20 @@ Windows setup and additional details are in [docs/local-development.md](docs/loc
 - Python linting and automated tests in GitHub Actions
 - Gitleaks secret scanning with a controlled detection self-test and Git-history scan
 - Semgrep SAST with a community Python baseline, tested project-owned rules, a blocking high-confidence gate, and SARIF output
-- non-root container runtime
+- Trivy dependency SCA with pull-request manifest diffs, full JSON reports, and HIGH/CRITICAL actionable-vulnerability gates
+- Trivy container scanning with SARIF/code-scanning integration and retained JSON/SARIF evidence
+- pinned container base-image digest and pinned CI security tooling
+- non-root container runtime with pip removed after dependency installation
 - read-only container root filesystem
 - dropped Linux capabilities and `no-new-privileges`
 - persistent SQLite data isolated to a dedicated container volume
 - container smoke testing for registration, login, authenticated access, and restart persistence
 
-Secret-scanning behavior and finding-response policy are documented in [docs/secret-scanning.md](docs/secret-scanning.md). Static-analysis rules, gate behavior, and limitations are documented in [docs/static-analysis.md](docs/static-analysis.md).
+Secret-scanning behavior and finding-response policy are documented in [docs/secret-scanning.md](docs/secret-scanning.md). Static-analysis rules, gate behavior, and limitations are documented in [docs/static-analysis.md](docs/static-analysis.md). Dependency and image vulnerability policies are documented in [docs/supply-chain-security.md](docs/supply-chain-security.md).
 
 ## Planned security controls
 
-- dependency and supply-chain checks
-- container image scanning
 - dynamic application security testing
-- threat modeling and documented security gates
+- threat modeling and documented end-to-end security gates
 
 See the open issues for the implementation roadmap.
