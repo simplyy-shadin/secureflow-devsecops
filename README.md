@@ -58,6 +58,7 @@ Windows setup and additional details are in [docs/local-development.md](docs/loc
 - Trivy dependency SCA with pull-request manifest diffs, full JSON reports, and HIGH/CRITICAL actionable-vulnerability gates
 - Trivy container scanning with SARIF/code-scanning integration and retained JSON/SARIF evidence
 - Checkov Kubernetes IaC scanning with a blocking policy, negative control test, checksum-verified scanner binary, and retained JSON evidence
+- release-image validation with CycloneDX SBOM generation, tag-gated GHCR publishing, and signed provenance/SBOM attestations
 - hardened Kubernetes reference manifests with non-root execution, seccomp, read-only root filesystem, capability dropping, resource limits, NetworkPolicy, PVC isolation and file-mounted JWT secret handling
 - OWASP ZAP Baseline against an ephemeral local target with an explicit FAIL/WARN/INFO policy
 - response-header hardening backed by unit tests and DAST regression gates
@@ -74,6 +75,7 @@ The security-control documentation is split by concern:
 - [Secret scanning](docs/secret-scanning.md)
 - [Static analysis](docs/static-analysis.md)
 - [Supply-chain security](docs/supply-chain-security.md)
+- [Release image integrity](docs/release-security.md)
 - [Kubernetes and IaC security](docs/kubernetes-security.md)
 - [Threat model](docs/threat-model.md)
 - [Security gate model](docs/security-gates.md)
