@@ -1,0 +1,15 @@
+title = "SecureFlow Gitleaks configuration"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Known synthetic credential present in historical test commits."
+condition = "AND"
+targetRules = ["generic-api-key"]
+regexes = ['''^Correct-Horse-Battery-Staple-42$''']
+paths = [
+  '''^tests/test_authentication\.py$''',
+  '''^tests/test_registration\.py$''',
+  '''^tests/test_password\.py$''',
+]

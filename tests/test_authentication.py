@@ -1,9 +1,10 @@
 from datetime import timedelta
 
 from app.security.tokens import create_access_token
+from tests.helpers import synthetic_password
 
 _TEST_EMAIL = "alice@secureflow.dev"
-_TEST_PASSWORD = "Correct-Horse-Battery-Staple-42"
+_TEST_PASSWORD = synthetic_password()
 
 
 def register_test_user(client):
@@ -48,27 +49,28 @@ def test_login_returns_bearer_token_and_allows_profile_access(client) -> None:
 
 def test_login_uses_same_error_for_wrong_password_and_unknown_user(client) -> None:
     register_test_user(client)
+    wrong_password = "x" * 16
 
-    wrong_password = client.post(
+    wrong_password_response = client.post(
         "/auth/login",
         json={
             "email": _TEST_EMAIL,
-            "password": "Definitely-Wrong-Password",
+            "password": wrong_password,
         },
     )
-    unknown_user = client.post(
+    unknown_user_response = client.post(
         "/auth/login",
         json={
             "email": "nobody@secureflow.dev",
-            "password": "Definitely-Wrong-Password",
+            "password": wrong_password,
         },
     )
 
-    assert wrong_password.status_code == 401
-    assert unknown_user.status_code == 401
-    assert wrong_password.json() == unknown_user.json()
-    assert wrong_password.headers["www-authenticate"] == "Bearer"
-    assert unknown_user.headers["www-authenticate"] == "Bearer"
+    assert wrong_password_response.status_code == 401
+    assert unknown_user_response.status_code == 401
+    assert wrong_password_response.json() == unknown_user_response.json()
+    assert wrong_password_response.headers["www-authenticate"] == "Bearer"
+    assert unknown_user_response.headers["www-authenticate"] == "Bearer"
 
 
 def test_profile_requires_bearer_token(client) -> None:

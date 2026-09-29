@@ -1,8 +1,9 @@
 from app.security.password import hash_password, verify_password
+from tests.helpers import synthetic_password
 
 
 def test_password_hash_does_not_store_plaintext() -> None:
-    password = "Correct-Horse-Battery-Staple-42"
+    password = synthetic_password()
 
     password_hash = hash_password(password)
 
@@ -12,14 +13,14 @@ def test_password_hash_does_not_store_plaintext() -> None:
 
 
 def test_password_verification_accepts_correct_password() -> None:
-    password = "Correct-Horse-Battery-Staple-42"
+    password = synthetic_password()
     password_hash = hash_password(password)
 
     assert verify_password(password, password_hash) is True
 
 
 def test_password_verification_rejects_incorrect_password() -> None:
-    password_hash = hash_password("Correct-Horse-Battery-Staple-42")
+    password_hash = hash_password(synthetic_password())
 
     assert verify_password("wrong-password", password_hash) is False
 
