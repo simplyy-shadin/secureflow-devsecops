@@ -1,0 +1,78 @@
+name: SAST
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: sast-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  semgrep:
+    name: Semgrep
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install pinned Semgrep
+        run: python -m pip install "semgrep==1.178.0"
+
+      - name: Verify scanner version
+        run: semgrep --version | grep -Fx "1.178.0"
+
+      - name: Test project-owned rules
+        run: semgrep --test security/semgrep
+
+      - name: Scan application
+        id: scan
+        shell: bash
+        run: |
+          set +e
+          semgrep scan \
+            --config p/python \
+            --config security/semgrep/secureflow.yml \
+            --severity ERROR \
+            --error \
+            --sarif-output semgrep.sarif \
+            app
+          scan_status=$?
+          echo "exit_code=$scan_status" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload SARIF to code scanning
+        if: ${{ always() && hashFiles('semgrep.sarif') != '' }}
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep
+
+      - name: Preserve SARIF artifact
+        if: ${{ always() && hashFiles('semgrep.sarif') != '' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: semgrep-sarif
+          path: semgrep.sarif
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Enforce SAST gate
+        if: ${{ steps.scan.outputs.exit_code != '0' }}
+        run: |
+          echo "Semgrep reported a blocking finding or scan error."
+          exit 1
