@@ -8,6 +8,33 @@ The repository is being developed incrementally. Each control is added through a
 
 The first milestone is the project foundation: repository conventions, a minimal API service, containerization, and baseline CI. Security-specific controls such as secret scanning, SAST, dependency analysis, container scanning, and DAST are added after that baseline is stable.
 
+## Application
+
+The project includes a small FastAPI service that exists to give the security pipeline something understandable to build, test, review, and eventually attack in controlled test cases.
+
+Current endpoint:
+
+```text
+GET /health
+```
+
+## Local setup
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements-dev.txt
+uvicorn app.main:app --reload
+```
+
+Run the tests with:
+
+```bash
+pytest
+```
+
+Windows setup and additional notes are in [docs/local-development.md](docs/local-development.md).
+
 ## Planned controls
 
 - secret scanning
