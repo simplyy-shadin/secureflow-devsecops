@@ -27,6 +27,10 @@ venv/
 # Security scan output
 reports/
 *.sarif
+*.cdx.json
+zap-report*.html
+zap-report*.json
+zap-report*.md
 
 # Build artifacts
 dist/

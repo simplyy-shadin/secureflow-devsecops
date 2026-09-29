@@ -12,21 +12,36 @@ A non-blocking result is not the same as a fixed vulnerability. Reports are reta
 
 ## Current gates
 
-| Control | What it validates | Blocking condition | Non-blocking evidence |
+| Control | What it validates | Blocking condition | Evidence |
 | --- | --- | --- | --- |
-| CI | Ruff, pytest, container runtime behavior, registration/login/profile flow, restart persistence | Lint/test failure, container startup failure, runtime-hardening regression, or failed smoke assertion | None; these checks are binary |
-| Gitleaks | Current repository and Git history | Any detected credential/secret, scanner failure, or failure of the generated fake-secret self-test | Redacted scanner output; secrets are not retained as artifacts |
-| Semgrep | Community Python rules plus project-owned rules | Semgrep `ERROR` finding, project-rule test failure, or scanner error | SARIF is uploaded to code scanning and retained as an artifact |
-| Trivy dependency SCA | Python dependency manifests and known vulnerability data | Fixed HIGH/CRITICAL library vulnerability or scanner failure | Full JSON report includes lower severities and unfixed findings |
-| Trivy container scan | Built runtime image and known vulnerability data | Fixed HIGH/CRITICAL image vulnerability, runtime package-manager regression, or scanner failure | Full JSON and SARIF reports are retained |
-| Checkov Kubernetes IaC | Kubernetes deployment manifests and runtime-security policy | Any non-skipped Checkov failure, scanner/install verification failure, or failure of the privileged-container control test | JSON report is retained; one narrowly scoped image-digest exception remains visible |
-| OWASP ZAP Baseline | Running local SecureFlow HTTP surface | A rule classified `FAIL` in `.zap/rules.tsv`, target startup failure, or scanner failure | Rules classified `WARN` stay visible; `INFO` is retained as scanner context |
+| CI | Ruff, pytest, container runtime behavior, registration/login/profile flow, restart persistence | Lint/test failure, container startup failure, runtime-hardening regression, or failed smoke assertion | Workflow logs |
+| Gitleaks | Current repository and Git history | Any detected credential/secret, scanner failure, or failure of the generated fake-secret self-test | Redacted workflow output |
+| Semgrep | Community Python rules plus project-owned rules | Semgrep `ERROR` finding, project-rule test failure, or scanner error | SARIF uploaded to code scanning and retained as an artifact |
+| Trivy dependency SCA | Python dependency manifests and known vulnerability data; PR/push plus recurring weekly evaluation | Fixed HIGH/CRITICAL library vulnerability or scanner failure | Full JSON report |
+| Trivy container scan | Built runtime image and known vulnerability data; PR/push plus recurring weekly evaluation | Fixed HIGH/CRITICAL image vulnerability, runtime package-manager regression, or scanner failure | Full JSON and SARIF reports |
+| Checkov Kubernetes IaC | Kubernetes deployment manifests and runtime-security policy | Any Checkov failure, scanner/install verification failure, or failure of the privileged-container control test | JSON report; current manifests pass without policy skips |
+| OWASP ZAP Baseline | Running local SecureFlow documentation/API surface | A rule classified `FAIL` in `.zap/rules.tsv`, target startup failure, or scanner failure | Baseline report; WARN/INFO findings remain visible |
+| Release image security | Release build, CycloneDX SBOM generation, immutable publication and attestations | Broken image build/SBOM validation; invalid release tag; publish or attestation failure | Validation SBOM plus release SBOM, metadata and GitHub attestations |
 
 ## IaC policy
 
 The Kubernetes Checkov workflow is blocking after the initial observation/remediation cycle.
 
-The only current skipped rule is `CKV_K8S_43` on the SecureFlow Deployment. The repository does not yet publish an application image, so there is no real application-image digest to pin. The exception is documented inline and in [kubernetes-security.md](kubernetes-security.md). It must be removed when image publishing is introduced.
+The initial scan found three configuration issues:
+
+- `CKV_K8S_15` — image pull policy was not `Always`;
+- `CKV_K8S_35` — JWT signing material was referenced through an environment-variable secret source;
+- `CKV_K8S_43` — the application image was not pinned by digest.
+
+The first two findings were remediated immediately. `CKV_K8S_43` was temporarily and narrowly skipped because no real SecureFlow image digest existed yet; inventing a placeholder digest would have created a false security claim.
+
+Release `v0.1.0` subsequently published a real image and recorded the registry-provided digest:
+
+```text
+ghcr.io/simplyy-shadin/secureflow-devsecops@sha256:93a26b7b9d665574026e9dd850a75670363f97dfacda4c736babc307ab80d32c
+```
+
+The Kubernetes Deployment now uses that immutable reference and the temporary `CKV_K8S_43` exception has been removed. The current Checkov gate therefore runs with no committed policy skip for the application image.
 
 Checkov itself is version-pinned and its downloaded release archive is checksum-verified before execution. A temporary privileged Pod is used as a negative control to verify that the policy engine rejects `CKV_K8S_16`.
 
@@ -44,12 +59,28 @@ The workflow uses ZAP's warning-tolerant mode so documented `WARN` findings do n
 
 Current blocking DAST rules cover:
 
-- anti-clickjacking protection
-- `X-Content-Type-Options`
-- Content Security Policy presence
-- Permissions Policy presence
+- anti-clickjacking protection;
+- `X-Content-Type-Options`;
+- Content Security Policy presence;
+- Permissions Policy presence.
 
-The current warning set is limited to behavior associated with the generated FastAPI Swagger UI and browser isolation choices. Details and the before/after scan are in [dast-remediation.md](dast-remediation.md).
+The current warning set is limited to behavior associated with the generated FastAPI Swagger UI and browser-isolation choices. Details and the before/after scan are in [dast-remediation.md](dast-remediation.md).
+
+## Release gate
+
+Pull requests that affect the release image build the candidate image and validate a CycloneDX SBOM without receiving package-write or signing permissions.
+
+A version-tag event must use `vMAJOR.MINOR.PATCH`. Only the tag-triggered publish job receives the permissions needed to push to GHCR and create OIDC-backed GitHub attestations.
+
+For `v0.1.0`, the release workflow:
+
+1. published the image to GHCR;
+2. captured the registry SHA-256 digest;
+3. generated the SBOM against that published digest;
+4. created signed build-provenance and SBOM attestations;
+5. retained release metadata and SBOM evidence.
+
+See [release-security.md](release-security.md) for verification commands and the exact first-release evidence.
 
 ## Finding response
 
@@ -69,6 +100,7 @@ A real credential requires revocation or rotation even if it is later removed fr
 - Trivy: dependency JSON plus container JSON/SARIF artifacts.
 - Checkov: Kubernetes JSON report retained as a workflow artifact.
 - ZAP: baseline report artifact from the ZAP action.
+- Release: validation SBOM plus published-image SBOM and release metadata; attestations remain associated with the repository/registry.
 - CI/Gitleaks: workflow logs provide execution evidence; secret values are redacted and not intentionally retained.
 
 ## Scope limitation

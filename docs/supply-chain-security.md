@@ -12,6 +12,8 @@ This means dependency changes are visible in CI and the complete resulting manif
 
 ## Current dependency scan
 
+The supply-chain workflow runs on pull requests, pushes to `main`, a weekly schedule, and manual dispatch. The scheduled run matters because vulnerability knowledge can change even when the repository does not: a newly published CVE should not wait for the next source-code commit before the pinned dependency and container state is re-evaluated.
+
 Trivy creates a JSON report containing findings across all severities. A second pass acts as the blocking gate.
 
 Blocking policy:
