@@ -54,17 +54,17 @@ Windows setup and additional details are in [docs/local-development.md](docs/loc
 - issue and pull-request based development
 - Python linting and automated tests in GitHub Actions
 - Gitleaks secret scanning with a controlled detection self-test and Git-history scan
+- Semgrep SAST with a community Python baseline, tested project-owned rules, a blocking high-confidence gate, and SARIF output
 - non-root container runtime
 - read-only container root filesystem
 - dropped Linux capabilities and `no-new-privileges`
 - persistent SQLite data isolated to a dedicated container volume
 - container smoke testing for registration, login, authenticated access, and restart persistence
 
-Secret-scanning behavior and finding-response policy are documented in [docs/secret-scanning.md](docs/secret-scanning.md).
+Secret-scanning behavior and finding-response policy are documented in [docs/secret-scanning.md](docs/secret-scanning.md). Static-analysis rules, gate behavior, and limitations are documented in [docs/static-analysis.md](docs/static-analysis.md).
 
 ## Planned security controls
 
-- static application security testing
 - dependency and supply-chain checks
 - container image scanning
 - dynamic application security testing
