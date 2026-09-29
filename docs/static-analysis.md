@@ -31,7 +31,7 @@ The rule is deliberately strict because the application currently has no legitim
 
 ## Rule tests
 
-Controlled vulnerable examples live only under `security/semgrep/tests/`. They are not application code.
+The controlled vulnerable examples are stored in `security/semgrep/secureflow.py`, beside the matching rule file. They are test fixtures, not application code.
 
 Each custom rule has:
 
@@ -54,7 +54,15 @@ A finding should not be suppressed only to make CI green. Any exception must be 
 
 ## SARIF
 
-The workflow writes Semgrep results as SARIF and uploads them to GitHub code scanning when the repository supports SARIF ingestion. CI output remains the authoritative merge gate; SARIF is an additional review surface.
+The workflow writes Semgrep results as SARIF and uploads them to GitHub code scanning when the repository supports SARIF ingestion. The same SARIF file is retained as a short-lived workflow artifact for review and troubleshooting.
+
+CI output remains the authoritative merge gate; SARIF is an additional review surface.
+
+## Reproducibility
+
+The Semgrep CLI is pinned to version 1.178.0. The community `p/python` ruleset is fetched from the Semgrep Registry, so its contents can evolve independently of the CLI version. That trade-off gives broader maintained coverage but is less reproducible than vendoring a ruleset snapshot.
+
+Project-owned rules are versioned in this repository and tested on every pull request.
 
 ## Limitations
 

@@ -37,7 +37,7 @@ jobs:
         run: semgrep --version | grep -Fx "1.178.0"
 
       - name: Test project-owned rules
-        run: semgrep --test --config security/semgrep/secureflow.yml security/semgrep/tests
+        run: semgrep --test security/semgrep
 
       - name: Scan application
         id: scan
