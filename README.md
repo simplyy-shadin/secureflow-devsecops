@@ -57,6 +57,9 @@ Windows setup and additional details are in [docs/local-development.md](docs/loc
 - Semgrep SAST with a community Python baseline, tested project-owned rules, a blocking high-confidence gate, and SARIF output
 - Trivy dependency SCA with pull-request manifest diffs, full JSON reports, and HIGH/CRITICAL actionable-vulnerability gates
 - Trivy container scanning with SARIF/code-scanning integration and retained JSON/SARIF evidence
+- OWASP ZAP Baseline against an ephemeral local target with an explicit FAIL/WARN/INFO policy
+- response-header hardening backed by unit tests and DAST regression gates
+- STRIDE threat modeling covering assets, trust boundaries, abuse cases and residual risks
 - pinned container base-image digest and pinned CI security tooling
 - non-root container runtime with pip removed after dependency installation
 - read-only container root filesystem
@@ -64,11 +67,13 @@ Windows setup and additional details are in [docs/local-development.md](docs/loc
 - persistent SQLite data isolated to a dedicated container volume
 - container smoke testing for registration, login, authenticated access, and restart persistence
 
-Secret-scanning behavior and finding-response policy are documented in [docs/secret-scanning.md](docs/secret-scanning.md). Static-analysis rules, gate behavior, and limitations are documented in [docs/static-analysis.md](docs/static-analysis.md). Dependency and image vulnerability policies are documented in [docs/supply-chain-security.md](docs/supply-chain-security.md).
+The security-control documentation is split by concern:
 
-## Planned security controls
+- [Secret scanning](docs/secret-scanning.md)
+- [Static analysis](docs/static-analysis.md)
+- [Supply-chain security](docs/supply-chain-security.md)
+- [Threat model](docs/threat-model.md)
+- [Security gate model](docs/security-gates.md)
+- [DAST remediation case study](docs/dast-remediation.md)
 
-- dynamic application security testing
-- threat modeling and documented end-to-end security gates
-
-See the open issues for the implementation roadmap.
+See the open issues for follow-on work and intentionally documented residual risks.
