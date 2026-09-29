@@ -17,7 +17,7 @@ POST /auth/login
 GET  /users/me
 ```
 
-Passwords are stored as Argon2id hashes. JWT signing material is supplied through environment configuration rather than committed to the repository. Authentication design notes are in [docs/authentication.md](docs/authentication.md).
+Passwords are stored as Argon2id hashes. JWT signing material is supplied through an environment variable for local/container development or a mounted secret file for orchestrated environments; it is never committed to the repository. Authentication design notes are in [docs/authentication.md](docs/authentication.md).
 
 ## Local setup
 
@@ -57,6 +57,8 @@ Windows setup and additional details are in [docs/local-development.md](docs/loc
 - Semgrep SAST with a community Python baseline, tested project-owned rules, a blocking high-confidence gate, and SARIF output
 - Trivy dependency SCA with pull-request manifest diffs, full JSON reports, and HIGH/CRITICAL actionable-vulnerability gates
 - Trivy container scanning with SARIF/code-scanning integration and retained JSON/SARIF evidence
+- Checkov Kubernetes IaC scanning with a blocking policy, negative control test, checksum-verified scanner binary, and retained JSON evidence
+- hardened Kubernetes reference manifests with non-root execution, seccomp, read-only root filesystem, capability dropping, resource limits, NetworkPolicy, PVC isolation and file-mounted JWT secret handling
 - OWASP ZAP Baseline against an ephemeral local target with an explicit FAIL/WARN/INFO policy
 - response-header hardening backed by unit tests and DAST regression gates
 - STRIDE threat modeling covering assets, trust boundaries, abuse cases and residual risks
@@ -72,6 +74,7 @@ The security-control documentation is split by concern:
 - [Secret scanning](docs/secret-scanning.md)
 - [Static analysis](docs/static-analysis.md)
 - [Supply-chain security](docs/supply-chain-security.md)
+- [Kubernetes and IaC security](docs/kubernetes-security.md)
 - [Threat model](docs/threat-model.md)
 - [Security gate model](docs/security-gates.md)
 - [DAST remediation case study](docs/dast-remediation.md)
