@@ -51,6 +51,11 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Generate ephemeral JWT signing key
+        shell: bash
+        run: |
+          echo "JWT_SECRET_KEY=$(python -c 'import secrets; print(secrets.token_hex(32))')" >> "$GITHUB_ENV"
+
       - name: Build and start container
         run: docker compose up --build --detach
 

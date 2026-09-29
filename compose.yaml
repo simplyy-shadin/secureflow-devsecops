@@ -6,6 +6,7 @@ services:
       - "8000:8000"
     environment:
       DATABASE_URL: sqlite:////data/secureflow.db
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY must be set}
     read_only: true
     tmpfs:
       - /tmp
