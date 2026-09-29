@@ -51,10 +51,15 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Generate ephemeral JWT signing key
+        shell: bash
+        run: |
+          echo "JWT_SECRET_KEY=$(python -c 'import secrets; print(secrets.token_hex(32))')" >> "$GITHUB_ENV"
+
       - name: Build and start container
         run: docker compose up --build --detach
 
-      - name: Verify hardened runtime and database persistence
+      - name: Verify hardened runtime and authenticated persistence
         shell: bash
         run: |
           set -euo pipefail
@@ -77,14 +82,35 @@ jobs:
           test "$(docker inspect --format '{{.HostConfig.ReadonlyRootfs}}' "$container_id")" = "true"
           docker compose exec -T api sh -c 'test "$(id -u)" -ne 0'
 
-          first_status="$(curl --silent --output /tmp/secureflow-register.json --write-out '%{http_code}' \
+          register_status="$(curl --silent --output /tmp/secureflow-register.json --write-out '%{http_code}' \
             --header 'Content-Type: application/json' \
             --data '{"email":"container-ci@secureflow.dev","password":"Container-CI-Password-2026"}' \
             http://127.0.0.1:8000/auth/register)"
-          test "$first_status" = "201"
+          test "$register_status" = "201"
+
+          login_status="$(curl --silent --output /tmp/secureflow-login.json --write-out '%{http_code}' \
+            --header 'Content-Type: application/json' \
+            --data '{"email":"container-ci@secureflow.dev","password":"Container-CI-Password-2026"}' \
+            http://127.0.0.1:8000/auth/login)"
+          test "$login_status" = "200"
+
+          access_token="$(python -c 'import json; print(json.load(open("/tmp/secureflow-login.json"))["access_token"])')"
+          test -n "$access_token"
+
+          profile_status="$(curl --silent --output /tmp/secureflow-profile.json --write-out '%{http_code}' \
+            --header "Authorization: Bearer $access_token" \
+            http://127.0.0.1:8000/users/me)"
+          test "$profile_status" = "200"
+
+          python -c 'import json; data=json.load(open("/tmp/secureflow-profile.json")); assert data["email"] == "container-ci@secureflow.dev"; assert "password_hash" not in data'
 
           docker compose restart api
           wait_for_health
+
+          restarted_profile_status="$(curl --silent --output /tmp/secureflow-profile-restarted.json --write-out '%{http_code}' \
+            --header "Authorization: Bearer $access_token" \
+            http://127.0.0.1:8000/users/me)"
+          test "$restarted_profile_status" = "200"
 
           duplicate_status="$(curl --silent --output /tmp/secureflow-duplicate.json --write-out '%{http_code}' \
             --header 'Content-Type: application/json' \

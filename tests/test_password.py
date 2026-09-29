@@ -26,3 +26,7 @@ def test_password_verification_rejects_incorrect_password() -> None:
 
 def test_password_verification_rejects_invalid_hash() -> None:
     assert verify_password("password", "not-an-argon2-hash") is False
+
+
+def test_password_verification_rejects_missing_hash() -> None:
+    assert verify_password("password", None) is False
