@@ -14,6 +14,11 @@ venv/
 .env.*
 !.env.example
 
+# Local application data
+*.db
+*.sqlite
+*.sqlite3
+
 # Local tooling
 .idea/
 .vscode/
